@@ -63,6 +63,9 @@ static int local_set_nspath(ct_handler_t h, unsigned long ns, char *path)
 	struct nspath_entry *e;
 	int len;
 
+	if ((ns & CLONE_NEWPID) && (ct->flags & CT_TASKLESS))
+		return -LCTERR_INVARG;
+
 	if (ct->state != CT_STOPPED)
 		return -LCTERR_BADCTSTATE;
 
@@ -205,6 +208,9 @@ static void local_ct_destroy(ct_handler_t h)
 static int local_set_nsmask(ct_handler_t h, unsigned long nsmask)
 {
 	struct container *ct = cth2ct(h);
+
+	if ((nsmask & CLONE_NEWPID) && ct->flags & CT_TASKLESS)
+		return -LCTERR_INVARG;
 
 	if (ct->state != CT_STOPPED)
 		return -LCTERR_BADCTSTATE;
@@ -977,6 +983,12 @@ static int local_set_option(ct_handler_t h, int opt, void *args)
 		ret = cgroups_create_service();
 		if (!ret)
 			ct->flags |= CT_KILLABLE;
+		break;
+	case LIBCT_OPT_TASKLESS:
+		if (ct->nsmask & CLONE_NEWPID)
+			return -LCTERR_INVARG;
+		if (!ret)
+			ct->flags |= CT_TASKLESS;
 		break;
 	case LIBCT_OPT_NOSETSID:
 		ret = 0;
