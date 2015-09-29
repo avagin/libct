@@ -84,6 +84,7 @@ struct container {
 	unsigned long		nsmask;		/* namespaces used by container */
 	unsigned long		setnsmask;
 	struct list_head	setns_list;
+	int			*ns_fds;
 
 	unsigned long		cgroups_mask;
 	struct list_head	cgroups;
