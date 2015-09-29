@@ -526,7 +526,8 @@ static int ct_clone(void *arg)
 	if (!ca->is_exec)
 		close(wait_sock);
 
-	ret = ca->cb(ca->arg);
+	if (ca->cb)
+		ret = ca->cb(ca->arg);
 	if (ca->is_exec)
 		goto err;
 
@@ -606,6 +607,9 @@ static int handle_pidsetgroups(pid_t pid)
 	close(fd);
 	return 0;
 }
+
+static int open_namespaces(struct container *ct, pid_t pid, int *fds);
+static void close_namespaces(int *fds);
 
 static ct_process_t __local_spawn_cb(ct_handler_t h, ct_process_desc_t ph, int (*cb)(void *), void *arg, bool is_exec)
 {
@@ -700,6 +704,18 @@ static ct_process_t __local_spawn_cb(ct_handler_t h, ct_process_desc_t ph, int (
 	if (net_start(ct))
 		goto err_net;
 
+	if (ct->flags & CT_TASKLESS) {
+		ct->ns_fds = xmalloc(ARRAY_SIZE(namespaces) * sizeof(int));
+		if (ct->ns_fds == NULL)
+			goto err_ch;
+
+		if (open_namespaces(ct, pid, ct->ns_fds)) {
+			xfree(ct->ns_fds);
+			ct->ns_fds = NULL;
+			goto err_ch;
+		}
+	}
+
 	spawn_sock_wake_and_close(wait_sock, 0);
 
 	aux = spawn_sock_wait(wait_sock);
@@ -719,6 +735,11 @@ static ct_process_t __local_spawn_cb(ct_handler_t h, ct_process_desc_t ph, int (
 	return &ct->p.h;
 
 err_ch:
+	if (ct->ns_fds) {
+		close_namespaces(ct->ns_fds);
+		xfree(ct->ns_fds);
+		ct->ns_fds = NULL;
+	}
 	net_stop(ct);
 err_net:
 	spawn_sock_wake_and_close(wait_sock, -1);
@@ -813,8 +834,9 @@ static int local_switch_ns(struct container *ct)
 	int fds[ARRAY_SIZE(namespaces)];
 	int aux, exit_code = -1;;
 
-	if (open_namespaces(ct, ct->p.pid, fds))
-		return -1;
+	if (!(ct->flags & CT_TASKLESS))
+		if (open_namespaces(ct, ct->p.pid, fds))
+			return -1;
 
 	for (aux = 0; aux < ARRAY_SIZE(namespaces); aux++) {
 		struct ns_desc *ns = namespaces[aux];
@@ -839,7 +861,8 @@ static int local_switch_ns(struct container *ct)
 	}
 	exit_code = 0;
 err:
-	close_namespaces(fds);
+	if (!(ct->flags & CT_TASKLESS))
+		close_namespaces(fds);
 	return exit_code;
 }
 
@@ -1017,6 +1040,11 @@ static int local_ct_kill(ct_handler_t h)
 		return kill(ct->p.pid, SIGKILL);
 	if (ct->flags & CT_KILLABLE)
 		return service_ctl_killall(ct);
+	if (ct->ns_fds) {
+		close_namespaces(ct->ns_fds);
+		xfree(ct->ns_fds);
+		ct->ns_fds = NULL;
+	}
 	return -1;
 }
 
