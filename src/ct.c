@@ -73,7 +73,7 @@ static int local_set_nspath(ct_handler_t h, unsigned long ns, char *path)
 	if (ns & ~kernel_ns_mask)
 		return -LCTERR_NONS;
 
-	if (ns & ct->nsmask)
+	if (ns & (ct->nsmask | ct->setnsmask))
 		return -LCTERR_BADARG;
 
 	len = strlen(path);
@@ -85,6 +85,7 @@ static int local_set_nspath(ct_handler_t h, unsigned long ns, char *path)
 	e->path[len] = 0;
 
 	list_add_tail(&e->node, &ct->setns_list);
+	ct->setnsmask |= ns;
 
 	return 0;
 }
