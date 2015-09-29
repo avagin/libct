@@ -831,10 +831,12 @@ static void close_namespaces(int *fds)
 
 static int local_switch_ns(struct container *ct)
 {
-	int fds[ARRAY_SIZE(namespaces)];
+	int lfds[ARRAY_SIZE(namespaces)], *fds = lfds;
 	int aux, exit_code = -1;;
 
-	if (!(ct->flags & CT_TASKLESS))
+	if (ct->flags & CT_TASKLESS)
+		fds = ct->ns_fds;
+	else
 		if (open_namespaces(ct, ct->p.pid, fds))
 			return -1;
 
@@ -1097,8 +1099,8 @@ static int local_set_option(ct_handler_t h, int opt, void *args)
 	case LIBCT_OPT_TASKLESS:
 		if (ct->nsmask & CLONE_NEWPID)
 			return -LCTERR_INVARG;
-		if (!ret)
-			ct->flags |= CT_TASKLESS;
+		ret = 0;
+		ct->flags |= CT_TASKLESS;
 		break;
 	case LIBCT_OPT_NOSETSID:
 		ret = 0;
