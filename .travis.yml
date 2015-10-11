@@ -1,7 +1,8 @@
 language: c
 env:
     global:
-        - secure: "gw2NEqsdamlVFSRNFdr0PKsMM9N0/okfsAhoEMTItucduILoTjZs5CrEy7O+p7EgNrMC9ogddr1Zki3hbTmI9yunvbsmsjHx1Bn0Ud0rvOqWYku6zmxTvm6Mth2UajcnQkxypbY0FZuNi8u+C9mDOgOvEZAIbBQQajDXQx9Gi88="
+        - secure: "pEXXpva8xEhFaiVX1IRFejI6rogmZKfbPrPziYqVSNskemtCcLUu6vxcneOx3TnFkuUR/UaXPMSjJmHXAeTRptsV1BsQrknbq9eZXzJjur1q8Em4yTRSHGbbfAiBpJB72Jp+DJLkAYtkZky79Jncpn7HmsyVv/1sQuFMajiijzU="
+
 
 compiler: gcc
 
@@ -26,8 +27,8 @@ addons:
   coverity_scan:
     project:
       name: "avagin/libct"
-      description: "Libct is a containers management library"
+      description: "Build submitted via Travis CI"
     notification_email: avagin@gmail.com
     build_command_prepend: true
-    build_command:   make
+    build_command:   "make -j 4"
     branch_pattern: coverity_scan
